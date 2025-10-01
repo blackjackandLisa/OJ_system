@@ -2,14 +2,25 @@
 # 使用Debian作为基础镜像，然后安装GCC（避免Docker Hub拉取失败）
 FROM debian:bullseye-slim
 
-# 完全替换为阿里云镜像源（所有apt源）
-RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.aliyun.com/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
+# 先使用HTTP源安装ca-certificates，然后再切换到HTTPS
+RUN echo "deb http://mirrors.aliyun.com/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     rm -rf /etc/apt/sources.list.d/* && \
     mkdir -p /etc/apt/sources.list.d/
 
-# 安装GCC和必要工具（一次性安装，减少层数）
+# 先安装ca-certificates（使用HTTP源）
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 切换到HTTPS源（现在有了CA证书）
+RUN echo "deb https://mirrors.aliyun.com/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.aliyun.com/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list
+
+# 安装GCC和必要工具
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         g++ \
