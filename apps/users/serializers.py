@@ -47,16 +47,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     """用户注册序列化器"""
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
     password2 = serializers.CharField(write_only=True, required=True, label='确认密码')
     
     # UserProfile字段
     user_type = serializers.ChoiceField(choices=UserProfile.USER_TYPE_CHOICES, default='student')
-    real_name = serializers.CharField(required=True, max_length=50)
-    student_id = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    school = serializers.CharField(required=False, allow_blank=True, max_length=100)
-    grade = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    major = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    real_name = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20)
     
     # 老师注册需要邀请码
     invitation_code = serializers.CharField(
@@ -75,12 +72,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             'password2',
             'user_type',
             'real_name',
-            'student_id',
-            'school',
-            'grade',
-            'major',
+            'phone',
             'invitation_code',
         ]
+        extra_kwargs = {
+            'email': {'required': False, 'allow_blank': True}
+        }
     
     def validate(self, attrs):
         """验证数据"""
@@ -88,12 +85,19 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "两次输入的密码不一致"})
         
-        # 验证邮箱唯一性
-        if User.objects.filter(email=attrs['email']).exists():
+        # 验证邮箱唯一性（如果提供了邮箱）
+        email = attrs.get('email', '')
+        if email and User.objects.filter(email=email).exists():
             raise serializers.ValidationError({"email": "该邮箱已被注册"})
         
-        # 老师注册需要邀请码
+        # 老师注册需要手机号和邀请码
         if attrs.get('user_type') == 'teacher':
+            # 验证手机号
+            phone = attrs.get('phone', '')
+            if not phone:
+                raise serializers.ValidationError({"phone": "老师注册需要提供手机号"})
+            
+            # 验证邀请码
             code = attrs.get('invitation_code', '')
             if not code:
                 raise serializers.ValidationError({"invitation_code": "老师注册需要邀请码"})
@@ -112,18 +116,21 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """创建用户"""
+        from django.utils import timezone
+        
         # 提取UserProfile字段
         user_type = validated_data.pop('user_type', 'student')
-        real_name = validated_data.pop('real_name')
-        student_id = validated_data.pop('student_id', '')
-        school = validated_data.pop('school', '')
-        grade = validated_data.pop('grade', '')
-        major = validated_data.pop('major', '')
+        real_name = validated_data.pop('real_name', '')
+        phone = validated_data.pop('phone', '')
         invitation = validated_data.pop('invitation', None)
         
         # 移除password2和invitation_code
         validated_data.pop('password2')
         validated_data.pop('invitation_code', None)
+        
+        # 如果没有邮箱，生成默认邮箱
+        if not validated_data.get('email'):
+            validated_data['email'] = f"{validated_data['username']}@oj.local"
         
         # 创建User
         user = User.objects.create_user(**validated_data)
@@ -131,11 +138,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         # 更新或创建UserProfile
         profile, created = UserProfile.objects.get_or_create(user=user)
         profile.user_type = user_type
-        profile.real_name = real_name
-        profile.student_id = student_id
-        profile.school = school
-        profile.grade = grade
-        profile.major = major
+        profile.real_name = real_name if real_name else user.username
+        profile.phone = phone
         profile.save()
         
         # 如果是老师注册，标记邀请码为已使用
