@@ -8,14 +8,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 完全替换为阿里云HTTP源（先安装ca-certificates）
-RUN rm -rf /etc/apt/sources.list.d/* && \
+# 完全替换为阿里云HTTP源（彻底清除所有官方源配置）
+RUN rm -rf /etc/apt/sources.list /etc/apt/sources.list.d/* /var/lib/apt/lists/* && \
     echo "deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
     echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    echo "deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
-
-# 安装ca-certificates和curl（使用HTTP源）
-RUN apt-get update && \
+    echo "deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
     rm -rf /var/lib/apt/lists/*
 
