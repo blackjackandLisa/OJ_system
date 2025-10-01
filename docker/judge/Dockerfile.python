@@ -1,0 +1,26 @@
+# Python 3.10 判题镜像
+FROM python:3.10-slim
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 创建判题用户（非root）
+RUN useradd -u 10001 -m -s /bin/bash judger && \
+    mkdir -p /workspace && \
+    chown judger:judger /workspace
+
+# 安装必要工具
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    time \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /workspace
+
+# 默认使用judger用户（编译时会临时切换回root）
+USER judger
+
+# 默认命令
+CMD ["/bin/bash"]
+

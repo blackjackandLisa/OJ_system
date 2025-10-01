@@ -75,8 +75,20 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         submission = serializer.save()
         
-        # TODO: 将提交加入判题队列
-        # judge_submission.delay(submission.id)
+        # 同步判题（Phase 2）
+        # TODO: Phase 3将改为异步Celery任务
+        from .judger import judge_submission
+        import threading
+        
+        # 在后台线程中判题，避免阻塞API响应
+        def judge_in_background():
+            try:
+                judge_submission(submission.id)
+            except Exception as e:
+                print(f"[Judge Error] {str(e)}")
+        
+        thread = threading.Thread(target=judge_in_background)
+        thread.start()
         
         return Response({
             'id': submission.id,
