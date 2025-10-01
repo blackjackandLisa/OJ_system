@@ -8,9 +8,12 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 使用国内镜像源加速下载
-RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
-    && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+# 配置国内镜像源加速下载（适用于中国用户）
+RUN if [ "$(curl -s ifconfig.me 2>/dev/null | grep -E '^(1\.|14\.|27\.|36\.|39\.|42\.|49\.|58\.|59\.|60\.|61\.|101\.|103\.|106\.|110\.|111\.|112\.|113\.|114\.|115\.|116\.|117\.|118\.|119\.|120\.|121\.|122\.|123\.|124\.|125\.|126\.|127\.|180\.|183\.|202\.|203\.|210\.|211\.|218\.|219\.|220\.|221\.|222\.)' || curl -s ipinfo.io/country 2>/dev/null | grep -q CN)" ]; then \
+        echo "检测到中国IP，使用国内镜像源"; \
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources; \
+        sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources; \
+    fi
 
 # 安装系统依赖
 RUN apt-get update \

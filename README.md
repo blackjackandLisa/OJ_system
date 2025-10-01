@@ -1,13 +1,14 @@
 # OJ系统
 
-基于Django + DRF + Bootstrap + PostgreSQL构建的在线判题系统。
+基于Django + DRF + Bootstrap + PostgreSQL构建的在线判题系统，专为Linux服务器部署优化。
 
-## 技术栈
+## 🎯 技术栈
 
 - **后端**: Django 4.2.7 + Django REST Framework
 - **前端**: Bootstrap 5.3.0
 - **数据库**: PostgreSQL 15
 - **部署**: Docker + Docker Compose + Nginx
+- **平台**: Linux服务器 (Ubuntu/CentOS/Debian)
 
 ## 项目结构
 
@@ -41,49 +42,44 @@ OJ_system/
 └── README.md                # 项目说明
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-### 1. 环境准备
+### 1. 系统要求
 
-确保你的系统已安装：
-- Docker
-- Docker Compose
+- **操作系统**: Ubuntu 18.04+ / CentOS 7+ / Debian 10+
+- **内存**: 最低2GB，推荐4GB
+- **存储**: 最低10GB可用空间
+- **网络**: 公网IP或域名
 
-### 2. 部署到Linux服务器
+### 2. 一键部署到Linux服务器
 
 ```bash
 # 克隆项目到服务器
-git clone <your-repo-url> oj_system
-cd oj_system
+git clone https://github.com/blackjackandLisa/OJ_system.git
+cd OJ_system
 
-# 给部署脚本执行权限
-chmod +x deploy.sh
+# 检查系统环境
+chmod +x check-system.sh
+./check-system.sh
 
-# 运行部署脚本
-./deploy.sh
+# 运行Linux优化部署脚本
+chmod +x deploy-linux.sh
+./deploy-linux.sh
 ```
 
-### 3. 手动部署（可选）
+### 3. 部署选项
 
-```bash
-# 复制环境配置文件
-cp env.example .env
+脚本提供三种部署方式：
+- **标准版本**: 使用官方镜像源
+- **国内优化版本**: 使用国内镜像源（推荐中国用户）
+- **开发版本**: 包含调试信息
 
-# 编辑环境配置
-vim .env
+### 4. 访问系统
 
-# 启动服务
-docker-compose up -d
-
-# 运行数据库迁移
-docker-compose exec web python manage.py migrate
-
-# 创建超级用户
-docker-compose exec web python manage.py createsuperuser
-
-# 收集静态文件
-docker-compose exec web python manage.py collectstatic --noinput
-```
+部署完成后访问：
+- **主页**: http://your-server-ip
+- **管理后台**: http://your-server-ip/admin
+- **API接口**: http://your-server-ip/api/info/
 
 ## 环境配置
 
@@ -128,26 +124,51 @@ docker-compose restart
 docker-compose ps
 ```
 
-## 开发环境
+## 🔧 服务管理
 
-### 本地开发
+### 基本命令
 
 ```bash
-# 安装依赖
-pip install -r requirements.txt
+# 查看服务状态
+docker-compose ps
 
-# 配置环境变量
-cp env.example .env
-# 编辑.env文件，设置DEBUG=True
+# 查看日志
+docker-compose logs -f
 
-# 运行迁移
-python manage.py migrate
+# 重启服务
+docker-compose restart
 
-# 创建超级用户
-python manage.py createsuperuser
+# 停止服务
+docker-compose down
 
-# 启动开发服务器
-python manage.py runserver
+# 启动服务
+docker-compose up -d
+```
+
+### 数据库管理
+
+```bash
+# 进入数据库
+docker-compose exec db psql -U postgres -d oj_system
+
+# 备份数据库
+docker-compose exec db pg_dump -U postgres oj_system > backup.sql
+
+# 恢复数据库
+docker-compose exec -T db psql -U postgres oj_system < backup.sql
+```
+
+### 系统监控
+
+```bash
+# 检查系统状态
+./check-system.sh
+
+# 查看资源使用
+docker stats
+
+# 清理Docker资源
+docker system prune -f
 ```
 
 ## 功能特性
@@ -172,32 +193,58 @@ python manage.py runserver
 - 竞赛管理
 - 实时通知
 
-## 故障排除
+## 🛠️ 故障排除
 
 ### 常见问题
 
-1. **数据库连接失败**
-   - 检查PostgreSQL容器是否正常运行
-   - 确认数据库配置信息是否正确
+1. **端口被占用**
+   ```bash
+   # 检查端口占用
+   netstat -tuln | grep :5432
+   
+   # 停止冲突服务
+   sudo systemctl stop postgresql
+   ```
 
-2. **静态文件无法访问**
-   - 运行 `python manage.py collectstatic`
-   - 检查Nginx配置
+2. **Docker权限问题**
+   ```bash
+   # 添加用户到docker组
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
 
-3. **权限问题**
-   - 确保Docker有足够权限
-   - 检查文件权限设置
+3. **内存不足**
+   ```bash
+   # 检查内存使用
+   free -h
+   
+   # 清理Docker资源
+   docker system prune -f
+   ```
 
-### 日志查看
+4. **数据库连接失败**
+   ```bash
+   # 检查容器状态
+   docker-compose ps
+   
+   # 查看数据库日志
+   docker-compose logs db
+   ```
+
+### 详细故障排除
+
+请参考 [README-Linux.md](README-Linux.md) 获取完整的故障排除指南。
+
+### 日志分析
 
 ```bash
 # 查看所有服务日志
 docker-compose logs
 
-# 查看特定服务日志
-docker-compose logs web
-docker-compose logs db
-docker-compose logs nginx
+# 查看错误日志
+docker-compose logs web | grep ERROR
+docker-compose logs db | grep ERROR
+docker-compose logs nginx | grep ERROR
 ```
 
 ## 贡献
