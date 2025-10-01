@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+
+{% block title %}用户注册 - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .register-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: -20px -15px 0 -15px;
+        padding: 40px 15px;
+    }
+    .register-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        overflow: hidden;
+        max-width: 600px;
+        width: 100%;
+    }
+    .register-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    .register-body {
+        padding: 2rem;
+    }
+    .role-selector {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .role-card {
+        flex: 1;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .role-card:hover {
+        border-color: #667eea;
+        background: #f8f9fa;
+    }
+    .role-card.active {
+        border-color: #667eea;
+        background: #e7f0ff;
+    }
+    .role-icon {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+    }
+    .form-floating {
+        margin-bottom: 1rem;
+    }
+    .invitation-code-field {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="register-container">
+    <div class="register-card">
+        <div class="register-header">
+            <h2><i class="fas fa-user-plus"></i> 用户注册</h2>
+            <p class="mb-0">选择您的角色并填写信息</p>
+        </div>
+        
+        <div class="register-body">
+            <!-- 角色选择 -->
+            <div class="role-selector">
+                <div class="role-card active" data-role="student" id="studentRole">
+                    <div class="role-icon">
+                        <i class="fas fa-user-graduate text-info"></i>
+                    </div>
+                    <h5>学生</h5>
+                    <small class="text-muted">学习算法，提升能力</small>
+                </div>
+                <div class="role-card" data-role="teacher" id="teacherRole">
+                    <div class="role-icon">
+                        <i class="fas fa-chalkboard-teacher text-success"></i>
+                    </div>
+                    <h5>老师</h5>
+                    <small class="text-muted">出题管理，教学辅助</small>
+                </div>
+            </div>
+
+            <!-- 注册表单 -->
+            <form id="registerForm">
+                {% csrf_token %}
+                
+                <input type="hidden" id="userType" name="user_type" value="student">
+                
+                <!-- 基本信息 -->
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="用户名" required pattern="[a-zA-Z0-9_]{3,20}">
+                    <label for="username"><i class="fas fa-user"></i> 用户名</label>
+                    <div class="form-text">3-20位字母、数字或下划线</div>
+                </div>
+
+                <div class="form-floating">
+                    <input type="email" class="form-control" id="email" name="email" 
+                           placeholder="邮箱" required>
+                    <label for="email"><i class="fas fa-envelope"></i> 邮箱</label>
+                </div>
+
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="密码" required minlength="8">
+                    <label for="password"><i class="fas fa-lock"></i> 密码</label>
+                    <div class="form-text">至少8位，包含字母和数字</div>
+                </div>
+
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password2" name="password2" 
+                           placeholder="确认密码" required>
+                    <label for="password2"><i class="fas fa-lock"></i> 确认密码</label>
+                </div>
+
+                <!-- 个人信息 -->
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="realName" name="real_name" 
+                           placeholder="真实姓名" required>
+                    <label for="realName"><i class="fas fa-id-card"></i> 真实姓名</label>
+                </div>
+
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="studentId" name="student_id" 
+                           placeholder="学号/工号">
+                    <label for="studentId" id="studentIdLabel">
+                        <i class="fas fa-id-badge"></i> 学号
+                    </label>
+                </div>
+
+                <!-- 学校信息 -->
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="school" name="school" 
+                           placeholder="学校/机构">
+                    <label for="school"><i class="fas fa-school"></i> 学校/机构</label>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="grade" name="grade" 
+                                   placeholder="年级">
+                            <label for="grade"><i class="fas fa-graduation-cap"></i> 年级</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="major" name="major" 
+                                   placeholder="专业">
+                            <label for="major"><i class="fas fa-book"></i> 专业</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 邀请码（老师注册时显示） -->
+                <div class="form-floating invitation-code-field" id="invitationCodeField">
+                    <input type="text" class="form-control" id="invitationCode" name="invitation_code" 
+                           placeholder="邀请码">
+                    <label for="invitationCode"><i class="fas fa-key"></i> 邀请码</label>
+                    <div class="form-text text-danger">老师注册需要提供邀请码</div>
+                </div>
+
+                <!-- 服务条款 -->
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                    <label class="form-check-label" for="agreeTerms">
+                        我已阅读并同意 <a href="#" target="_blank">服务条款</a> 和 <a href="#" target="_blank">隐私政策</a>
+                    </label>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                        <i class="fas fa-user-plus"></i> 注册
+                    </button>
+                </div>
+
+                <!-- 登录链接 -->
+                <div class="text-center mt-3">
+                    <p class="text-muted">
+                        已有账号？<a href="{% url 'users:login' %}">立即登录</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 角色选择
+    const studentRole = document.getElementById('studentRole');
+    const teacherRole = document.getElementById('teacherRole');
+    const userTypeInput = document.getElementById('userType');
+    const invitationCodeField = document.getElementById('invitationCodeField');
+    const invitationCodeInput = document.getElementById('invitationCode');
+    const studentIdLabel = document.getElementById('studentIdLabel');
+    
+    studentRole.addEventListener('click', function() {
+        studentRole.classList.add('active');
+        teacherRole.classList.remove('active');
+        userTypeInput.value = 'student';
+        invitationCodeField.style.display = 'none';
+        invitationCodeInput.required = false;
+        studentIdLabel.innerHTML = '<i class="fas fa-id-badge"></i> 学号';
+    });
+    
+    teacherRole.addEventListener('click', function() {
+        teacherRole.classList.add('active');
+        studentRole.classList.remove('active');
+        userTypeInput.value = 'teacher';
+        invitationCodeField.style.display = 'block';
+        invitationCodeInput.required = true;
+        studentIdLabel.innerHTML = '<i class="fas fa-id-badge"></i> 工号';
+    });
+    
+    // 表单提交
+    const form = document.getElementById('registerForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // 禁用提交按钮
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+        
+        // 获取表单数据
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        
+        // 移除CSRF token
+        delete data.csrfmiddlewaretoken;
+        
+        try {
+            const response = await fetch('/users/api/register/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // 注册成功
+                alert('注册成功！即将跳转到首页');
+                window.location.href = '/';
+            } else {
+                // 注册失败
+                let errorMsg = '注册失败：\n';
+                for (let key in result) {
+                    if (Array.isArray(result[key])) {
+                        errorMsg += `${key}: ${result[key].join(', ')}\n`;
+                    } else {
+                        errorMsg += `${key}: ${result[key]}\n`;
+                    }
+                }
+                alert(errorMsg);
+                
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+            }
+        } catch (error) {
+            console.error('注册错误:', error);
+            alert('网络错误，请稍后重试');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+        }
+    });
+});
+
+// 获取Cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

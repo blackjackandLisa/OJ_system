@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+
+{% block title %}个人中心 - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+    }
+    .avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 4px solid white;
+        object-fit: cover;
+    }
+    .stats-card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .info-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    .role-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 个人资料头部 -->
+<div class="profile-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center">
+                {% if user.profile.avatar %}
+                    <img src="{{ user.profile.avatar.url }}" alt="头像" class="avatar">
+                {% else %}
+                    <div class="avatar bg-light d-flex align-items-center justify-content-center">
+                        <i class="fas fa-user fa-3x text-secondary"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-md-9">
+                <h2 class="mb-2">{{ user.profile.real_name }}</h2>
+                <p class="mb-2">
+                    <i class="fas fa-at"></i> {{ user.username }}
+                    {% if user.profile.user_type == 'student' %}
+                        <span class="badge bg-info role-badge ms-2">
+                            <i class="fas fa-user-graduate"></i> 学生
+                        </span>
+                    {% elif user.profile.user_type == 'teacher' %}
+                        <span class="badge bg-success role-badge ms-2">
+                            <i class="fas fa-chalkboard-teacher"></i> 老师
+                        </span>
+                    {% else %}
+                        <span class="badge bg-danger role-badge ms-2">
+                            <i class="fas fa-user-shield"></i> 管理员
+                        </span>
+                    {% endif %}
+                    
+                    {% if user.profile.is_verified %}
+                        <span class="badge bg-success ms-1">
+                            <i class="fas fa-check-circle"></i> 已认证
+                        </span>
+                    {% endif %}
+                </p>
+                {% if user.profile.bio %}
+                    <p class="mb-0"><i class="fas fa-quote-left"></i> {{ user.profile.bio }}</p>
+                {% endif %}
+                {% if user.profile.school %}
+                    <p class="mb-0">
+                        <i class="fas fa-school"></i> {{ user.profile.school }}
+                        {% if user.profile.major %} - {{ user.profile.major }}{% endif %}
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <div class="stats-number text-success">{{ user.profile.total_accepted }}</div>
+                    <p class="text-muted mb-0">通过题目</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-paper-plane fa-2x text-primary mb-2"></i>
+                    <div class="stats-number text-primary">{{ user.profile.total_submit }}</div>
+                    <p class="text-muted mb-0">总提交数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-circle fa-2x text-warning mb-2"></i>
+                    <div class="stats-number text-warning">{{ user.profile.total_tried }}</div>
+                    <p class="text-muted mb-0">尝试题目</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                    <div class="stats-number text-info">{{ user.profile.acceptance_rate }}%</div>
+                    <p class="text-muted mb-0">通过率</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：个人信息 -->
+        <div class="col-md-8">
+            <!-- 基本信息 -->
+            <div class="info-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-user-circle"></i> 基本信息
+                    <button class="btn btn-sm btn-outline-primary float-end" id="editInfoBtn">
+                        <i class="fas fa-edit"></i> 编辑
+                    </button>
+                </h5>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">用户名</div>
+                    <div class="col-md-8"><strong>{{ user.username }}</strong></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">邮箱</div>
+                    <div class="col-md-8">{{ user.email }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">真实姓名</div>
+                    <div class="col-md-8">{{ user.profile.real_name }}</div>
+                </div>
+                {% if user.profile.student_id %}
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">
+                        {% if user.profile.is_student %}学号{% else %}工号{% endif %}
+                    </div>
+                    <div class="col-md-8">{{ user.profile.student_id }}</div>
+                </div>
+                {% endif %}
+                {% if user.profile.school %}
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">学校</div>
+                    <div class="col-md-8">{{ user.profile.school }}</div>
+                </div>
+                {% endif %}
+                {% if user.profile.major %}
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">专业</div>
+                    <div class="col-md-8">{{ user.profile.major }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">注册时间</div>
+                    <div class="col-md-8">{{ user.profile.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                {% if user.profile.last_login_at %}
+                <div class="row mb-3">
+                    <div class="col-md-4 text-muted">最后登录</div>
+                    <div class="col-md-8">{{ user.profile.last_login_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 最近提交（占位） -->
+            <div class="info-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-history"></i> 最近提交
+                </h5>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 提交记录功能即将上线
+                </div>
+            </div>
+
+            <!-- 通过的题目（占位） -->
+            <div class="info-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-trophy"></i> 通过的题目
+                </h5>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 题目列表功能即将上线
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：快捷操作 -->
+        <div class="col-md-4">
+            <!-- 快捷操作 -->
+            <div class="info-card">
+                <h5 class="mb-3"><i class="fas fa-bolt"></i> 快捷操作</h5>
+                <div class="d-grid gap-2">
+                    <a href="/problems/" class="btn btn-primary">
+                        <i class="fas fa-code"></i> 开始刷题
+                    </a>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                        <i class="fas fa-key"></i> 修改密码
+                    </button>
+                    {% if user.profile.is_teacher %}
+                    <a href="{% url 'users:my_classes' %}" class="btn btn-outline-success">
+                        <i class="fas fa-chalkboard"></i> 我的班级
+                    </a>
+                    {% endif %}
+                    {% if user.is_staff %}
+                    <a href="/admin/" class="btn btn-outline-danger">
+                        <i class="fas fa-cog"></i> 管理后台
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 账号信息 -->
+            <div class="info-card">
+                <h5 class="mb-3"><i class="fas fa-shield-alt"></i> 账号状态</h5>
+                <div class="mb-2">
+                    {% if user.profile.is_active %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-check"></i> 账号正常
+                        </span>
+                    {% else %}
+                        <span class="badge bg-danger">
+                            <i class="fas fa-times"></i> 账号已禁用
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    {% if user.profile.is_verified %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-envelope-circle-check"></i> 邮箱已验证
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning">
+                            <i class="fas fa-envelope"></i> 邮箱未验证
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 班级信息（学生） -->
+            {% if user.profile.is_student %}
+            <div class="info-card">
+                <h5 class="mb-3"><i class="fas fa-users"></i> 我的班级</h5>
+                {% if user.enrolled_classes.all %}
+                    <ul class="list-unstyled">
+                        {% for class in user.enrolled_classes.all %}
+                        <li class="mb-2">
+                            <i class="fas fa-graduation-cap text-primary"></i>
+                            {{ class.name }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">还未加入任何班级</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 修改密码模态框 -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-key"></i> 修改密码
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="oldPassword" class="form-label">当前密码</label>
+                        <input type="password" class="form-control" id="oldPassword" 
+                               name="old_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">新密码</label>
+                        <input type="password" class="form-control" id="newPassword" 
+                               name="new_password" required minlength="8">
+                        <div class="form-text">至少8位，包含字母和数字</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword2" class="form-label">确认新密码</label>
+                        <input type="password" class="form-control" id="newPassword2" 
+                               name="new_password2" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="changePasswordBtn">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 修改密码
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    
+    changePasswordBtn.addEventListener('click', async function() {
+        const formData = new FormData(changePasswordForm);
+        const data = Object.fromEntries(formData.entries());
+        delete data.csrfmiddlewaretoken;
+        
+        // 验证两次密码是否一致
+        if (data.new_password !== data.new_password2) {
+            alert('两次输入的新密码不一致');
+            return;
+        }
+        
+        changePasswordBtn.disabled = true;
+        changePasswordBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 修改中...';
+        
+        try {
+            const response = await fetch('/users/api/users/me/change_password/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('密码修改成功！请重新登录');
+                window.location.href = '/users/logout/';
+            } else {
+                alert(result.error || '密码修改失败');
+                changePasswordBtn.disabled = false;
+                changePasswordBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+            }
+        } catch (error) {
+            console.error('修改密码错误:', error);
+            alert('网络错误，请稍后重试');
+            changePasswordBtn.disabled = false;
+            changePasswordBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+        }
+    });
+});
+
+// 获取Cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

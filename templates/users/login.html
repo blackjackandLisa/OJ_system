@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}用户登录 - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: -20px -15px 0 -15px;
+        padding: 40px 15px;
+    }
+    .login-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        overflow: hidden;
+        max-width: 450px;
+        width: 100%;
+    }
+    .login-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    .login-body {
+        padding: 2.5rem;
+    }
+    .form-floating {
+        margin-bottom: 1.5rem;
+    }
+    .login-btn {
+        height: 50px;
+        font-size: 1.1rem;
+    }
+    .divider {
+        text-align: center;
+        margin: 1.5rem 0;
+        position: relative;
+    }
+    .divider::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 100%;
+        height: 1px;
+        background: #dee2e6;
+    }
+    .divider span {
+        background: white;
+        padding: 0 1rem;
+        position: relative;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <i class="fas fa-sign-in-alt fa-3x mb-3"></i>
+            <h2>欢迎回来</h2>
+            <p class="mb-0">登录您的OJ系统账号</p>
+        </div>
+        
+        <div class="login-body">
+            <form id="loginForm">
+                {% csrf_token %}
+                
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="用户名或邮箱" required>
+                    <label for="username">
+                        <i class="fas fa-user"></i> 用户名或邮箱
+                    </label>
+                </div>
+
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="密码" required>
+                    <label for="password">
+                        <i class="fas fa-lock"></i> 密码
+                    </label>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe" name="remember_me">
+                        <label class="form-check-label" for="rememberMe">
+                            记住我
+                        </label>
+                    </div>
+                    <a href="#" class="text-decoration-none">忘记密码？</a>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i> 登录
+                    </button>
+                </div>
+
+                <div class="divider">
+                    <span>或</span>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-muted mb-0">
+                        还没有账号？
+                        <a href="{% url 'users:register' %}" class="text-decoration-none fw-bold">
+                            立即注册
+                        </a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // 禁用登录按钮
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+        
+        // 获取表单数据
+        const formData = new FormData(form);
+        const data = {
+            username: formData.get('username'),
+            password: formData.get('password'),
+            remember_me: formData.get('remember_me') === 'on'
+        };
+        
+        try {
+            const response = await fetch('/users/api/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // 登录成功
+                alert('登录成功！');
+                
+                // 获取重定向URL（如果有的话）
+                const urlParams = new URLSearchParams(window.location.search);
+                const next = urlParams.get('next') || '/';
+                window.location.href = next;
+            } else {
+                // 登录失败
+                alert(result.error || '登录失败，请检查用户名和密码');
+                
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+            }
+        } catch (error) {
+            console.error('登录错误:', error);
+            alert('网络错误，请稍后重试');
+            
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+        }
+    });
+});
+
+// 获取Cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
