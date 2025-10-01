@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - OJ系统{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">欢迎来到OJ系统</h1>
+                <p class="lead mb-4">{{ description }}</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'core:api_info' %}" class="btn btn-light btn-lg">查看API</a>
+                    <a href="/admin/" class="btn btn-outline-light btn-lg">管理后台</a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <i class="fas fa-code fa-10x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center mb-5">
+                <h2 class="display-5 fw-bold">系统特性</h2>
+                <p class="lead text-muted">基于现代化技术栈构建的高性能在线判题系统</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-rocket fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="card-title">高性能</h5>
+                        <p class="card-text">基于Django和PostgreSQL构建，支持高并发访问和快速响应。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-mobile-alt fa-3x text-success"></i>
+                        </div>
+                        <h5 class="card-title">响应式设计</h5>
+                        <p class="card-text">采用Bootstrap框架，完美适配各种设备和屏幕尺寸。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-cogs fa-3x text-warning"></i>
+                        </div>
+                        <h5 class="card-title">RESTful API</h5>
+                        <p class="card-text">提供完整的REST API接口，支持前后端分离开发。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Technology Stack -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center mb-5">
+                <h2 class="display-5 fw-bold">技术栈</h2>
+                <p class="lead text-muted">采用业界领先的技术方案</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="fab fa-python fa-4x text-primary"></i>
+                    </div>
+                    <h6>Django</h6>
+                    <small class="text-muted">Web框架</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-database fa-4x text-success"></i>
+                    </div>
+                    <h6>PostgreSQL</h6>
+                    <small class="text-muted">数据库</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="fab fa-bootstrap fa-4x text-purple"></i>
+                    </div>
+                    <h6>Bootstrap</h6>
+                    <small class="text-muted">前端框架</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-server fa-4x text-info"></i>
+                    </div>
+                    <h6>Linux</h6>
+                    <small class="text-muted">部署环境</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Status Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <h2 class="display-5 fw-bold mb-4">系统状态</h2>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-success">✓ 系统运行正常</h5>
+                                <p class="card-text">所有服务正常运行</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-info">✓ 数据库连接正常</h5>
+                                <p class="card-text">PostgreSQL服务正常</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-primary">✓ API服务正常</h5>
+                                <p class="card-text">REST API接口可用</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .text-purple {
+        color: #6f42c1 !important;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Font Awesome -->
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+{% endblock %}
