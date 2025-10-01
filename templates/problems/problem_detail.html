@@ -91,9 +91,15 @@
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/problems/{{ problem.id }}/submit/" class="btn btn-light btn-lg">
-                    <i class="fas fa-code"></i> 提交代码
-                </a>
+                {% if user.is_authenticated %}
+                    <a href="/problems/{{ problem.id }}/submit/" class="btn btn-light btn-lg">
+                        <i class="fas fa-code"></i> 提交代码
+                    </a>
+                {% else %}
+                    <a href="/users/login/?next=/problems/{{ problem.id }}/submit/" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt"></i> 登录后提交
+                    </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -289,9 +295,15 @@
 
             <!-- 操作按钮 -->
             <div class="d-grid gap-2 mb-3">
-                <a href="/problems/{{ problem.id }}/submit/" class="btn btn-primary btn-lg">
-                    <i class="fas fa-code"></i> 提交代码
-                </a>
+                {% if user.is_authenticated %}
+                    <a href="/problems/{{ problem.id }}/submit/" class="btn btn-primary btn-lg">
+                        <i class="fas fa-code"></i> 提交代码
+                    </a>
+                {% else %}
+                    <a href="/users/login/?next=/problems/{{ problem.id }}/submit/" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt"></i> 登录后提交
+                    </a>
+                {% endif %}
                 <a href="/problems/" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left"></i> 返回列表
                 </a>

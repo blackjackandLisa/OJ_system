@@ -16,6 +16,8 @@ from .serializers import (
     TestCaseSerializer,
     UserProblemStatusSerializer,
 )
+from apps.users.decorators import teacher_required
+from .permissions import IsTeacherOrAdmin, IsOwnerOrTeacherOrAdmin
 
 
 class ProblemViewSet(viewsets.ModelViewSet):
@@ -26,6 +28,7 @@ class ProblemViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description', 'source']
     ordering_fields = ['id', 'difficulty', 'total_submit', 'total_accepted', 'created_at']
     ordering = ['-created_at']
+    permission_classes = [IsTeacherOrAdmin]
     
     def get_serializer_class(self):
         """根据action选择序列化器"""
@@ -34,12 +37,6 @@ class ProblemViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'update', 'partial_update']:
             return ProblemCreateUpdateSerializer
         return ProblemDetailSerializer
-    
-    def get_permissions(self):
-        """根据action设置权限"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
-        return [AllowAny()]
     
     def get_queryset(self):
         """获取查询集"""
@@ -171,13 +168,24 @@ def problem_detail_view(request, pk):
     return render(request, 'problems/problem_detail.html', context)
 
 
-@login_required
+@login_required(login_url='/users/login/')
 def problem_submit_view(request, pk):
-    """题目提交页面"""
+    """题目提交页面（需要登录）"""
     problem = get_object_or_404(Problem, pk=pk, status='published')
+    
+    # 获取用户状态
+    user_status = None
+    try:
+        user_status = UserProblemStatus.objects.get(
+            user=request.user,
+            problem=problem
+        )
+    except UserProblemStatus.DoesNotExist:
+        pass
     
     context = {
         'problem': problem,
+        'user_status': user_status,
     }
     return render(request, 'problems/problem_submit.html', context)
 
