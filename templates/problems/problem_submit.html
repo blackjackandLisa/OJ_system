@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block title %}提交代码 - {{ problem.title }} - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .editor-container {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .editor-header {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .code-editor {
+        height: 500px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        padding: 1rem;
+        border: none;
+        resize: vertical;
+    }
+    .problem-info-sidebar {
+        position: sticky;
+        top: 20px;
+    }
+    .info-card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    .submit-btn {
+        font-size: 1.1rem;
+        padding: 0.75rem 2rem;
+    }
+    .result-section {
+        display: none;
+        margin-top: 2rem;
+    }
+</style>
+<!-- Monaco Editor CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- 左侧：代码编辑器 -->
+        <div class="col-lg-8">
+            <!-- 题目标题 -->
+            <div class="mb-4">
+                <h3>
+                    <a href="/problems/{{ problem.id }}/" class="text-decoration-none">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    {{ problem.id }}. {{ problem.title }}
+                </h3>
+            </div>
+
+            <!-- 编辑器容器 -->
+            <div class="editor-container">
+                <div class="editor-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label mb-0 me-2"><strong>编程语言：</strong></label>
+                            <select class="form-select form-select-sm d-inline-block w-auto" id="languageSelect">
+                                <option value="cpp">C++</option>
+                                <option value="c">C</option>
+                                <option value="java">Java</option>
+                                <option value="python" selected>Python</option>
+                                <option value="javascript">JavaScript</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-sm btn-outline-secondary" id="resetCode">
+                                <i class="fas fa-undo"></i> 重置代码
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <textarea class="code-editor" id="codeEditor"></textarea>
+            </div>
+
+            <!-- 提交按钮 -->
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-success submit-btn" id="submitBtn">
+                    <i class="fas fa-paper-plane"></i> 提交代码
+                </button>
+                <button class="btn btn-outline-primary" id="testBtn">
+                    <i class="fas fa-flask"></i> 测试样例
+                </button>
+            </div>
+
+            <!-- 结果显示区域 -->
+            <div class="result-section" id="resultSection">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <i class="fas fa-clipboard-check"></i> 运行结果
+                    </div>
+                    <div class="card-body" id="resultContent">
+                        <!-- 动态加载结果 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：题目信息 -->
+        <div class="col-lg-4">
+            <div class="problem-info-sidebar">
+                <!-- 题目基本信息 -->
+                <div class="card info-card">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-info-circle"></i> 题目信息
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <small class="text-muted">难度</small>
+                            <h6>
+                                {% if problem.difficulty == 'easy' %}
+                                    <span class="badge bg-success">简单</span>
+                                {% elif problem.difficulty == 'medium' %}
+                                    <span class="badge bg-warning">中等</span>
+                                {% else %}
+                                    <span class="badge bg-danger">困难</span>
+                                {% endif %}
+                            </h6>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">时间限制</small>
+                            <h6>{{ problem.time_limit }} ms</h6>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">内存限制</small>
+                            <h6>{{ problem.memory_limit }} MB</h6>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">通过率</small>
+                            <h6>{{ problem.acceptance_rate }}%</h6>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 代码模板提示 -->
+                <div class="card info-card">
+                    <div class="card-header bg-secondary text-white">
+                        <i class="fas fa-code"></i> 代码模板
+                    </div>
+                    <div class="card-body">
+                        <small class="text-muted">
+                            选择编程语言后，编辑器会自动加载对应的代码模板。
+                            你可以在此基础上编写代码。
+                        </small>
+                    </div>
+                </div>
+
+                <!-- 提交说明 -->
+                <div class="card info-card">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="fas fa-exclamation-triangle"></i> 提交说明
+                    </div>
+                    <div class="card-body">
+                        <ul class="small mb-0">
+                            <li>请确保代码能够编译运行</li>
+                            <li>注意输入输出格式</li>
+                            <li>可以先测试样例再提交</li>
+                            <li>提交后会自动运行所有测试用例</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 快捷键说明 -->
+                <div class="card info-card">
+                    <div class="card-header bg-info text-white">
+                        <i class="fas fa-keyboard"></i> 快捷键
+                    </div>
+                    <div class="card-body">
+                        <small>
+                            <strong>Ctrl+S:</strong> 保存代码<br>
+                            <strong>Ctrl+Enter:</strong> 提交代码<br>
+                            <strong>Tab:</strong> 缩进<br>
+                            <strong>Ctrl+/:</strong> 注释
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- CodeMirror -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+
+<script>
+// 代码模板
+const codeTemplates = {
+    cpp: `#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    // 读取输入
+    
+    // 处理逻辑
+    
+    // 输出结果
+    
+    return 0;
+}`,
+    c: `#include <stdio.h>
+
+int main() {
+    // 读取输入
+    
+    // 处理逻辑
+    
+    // 输出结果
+    
+    return 0;
+}`,
+    java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        
+        // 读取输入
+        
+        // 处理逻辑
+        
+        // 输出结果
+        
+        sc.close();
+    }
+}`,
+    python: `# 读取输入
+
+# 处理逻辑
+
+# 输出结果
+`,
+    javascript: `// Node.js 环境
+const readline = require('readline');
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+// 读取输入
+
+// 处理逻辑
+
+// 输出结果
+`
+};
+
+// 初始化CodeMirror编辑器
+let editor;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('codeEditor');
+    
+    editor = CodeMirror.fromTextArea(textarea, {
+        mode: 'text/x-python',
+        theme: 'monokai',
+        lineNumbers: true,
+        indentUnit: 4,
+        indentWithTabs: false,
+        lineWrapping: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+    });
+    
+    // 设置初始代码
+    editor.setValue(codeTemplates.python);
+    
+    // 语言切换
+    document.getElementById('languageSelect').addEventListener('change', function(e) {
+        const language = e.target.value;
+        changeLanguage(language);
+    });
+    
+    // 重置代码
+    document.getElementById('resetCode').addEventListener('click', function() {
+        const language = document.getElementById('languageSelect').value;
+        if (confirm('确定要重置代码吗？当前编辑的内容将丢失。')) {
+            editor.setValue(codeTemplates[language]);
+        }
+    });
+    
+    // 提交代码
+    document.getElementById('submitBtn').addEventListener('click', submitCode);
+    
+    // 测试样例
+    document.getElementById('testBtn').addEventListener('click', testSample);
+    
+    // 快捷键
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+S 保存
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveCode();
+        }
+        // Ctrl+Enter 提交
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            submitCode();
+        }
+    });
+});
+
+// 切换语言
+function changeLanguage(language) {
+    const modeMap = {
+        cpp: 'text/x-c++src',
+        c: 'text/x-csrc',
+        java: 'text/x-java',
+        python: 'text/x-python',
+        javascript: 'text/javascript'
+    };
+    
+    editor.setOption('mode', modeMap[language]);
+    
+    // 询问是否加载模板
+    if (confirm('是否加载该语言的代码模板？')) {
+        editor.setValue(codeTemplates[language]);
+    }
+}
+
+// 提交代码
+function submitCode() {
+    const code = editor.getValue();
+    const language = document.getElementById('languageSelect').value;
+    
+    if (!code.trim()) {
+        alert('请先编写代码！');
+        return;
+    }
+    
+    // 显示提交中
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+    
+    // TODO: 发送到后端API
+    // 这里暂时显示模拟结果
+    setTimeout(() => {
+        showResult({
+            status: 'pending',
+            message: '提交系统即将上线，敬请期待！',
+            detail: '当前提交的代码已保存，判题功能将在下个版本中实现。'
+        });
+        
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交代码';
+    }, 1000);
+}
+
+// 测试样例
+function testSample() {
+    const code = editor.getValue();
+    const language = document.getElementById('languageSelect').value;
+    
+    if (!code.trim()) {
+        alert('请先编写代码！');
+        return;
+    }
+    
+    // 显示测试中
+    const testBtn = document.getElementById('testBtn');
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
+    
+    // TODO: 发送到后端API测试
+    setTimeout(() => {
+        showResult({
+            status: 'info',
+            message: '样例测试功能即将上线',
+            detail: '测试功能将在判题系统开发完成后可用。'
+        });
+        
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="fas fa-flask"></i> 测试样例';
+    }, 1000);
+}
+
+// 保存代码到本地
+function saveCode() {
+    const code = editor.getValue();
+    const language = document.getElementById('languageSelect').value;
+    const key = `problem_{{ problem.id }}_${language}_code`;
+    
+    localStorage.setItem(key, code);
+    
+    // 显示保存成功提示
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 start-50 translate-middle-x mt-3';
+    toast.setAttribute('role', 'alert');
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check"></i> 代码已保存到本地
+            </div>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 2000);
+}
+
+// 显示结果
+function showResult(result) {
+    const resultSection = document.getElementById('resultSection');
+    const resultContent = document.getElementById('resultContent');
+    
+    let statusClass = 'info';
+    let statusIcon = 'info-circle';
+    
+    if (result.status === 'accepted') {
+        statusClass = 'success';
+        statusIcon = 'check-circle';
+    } else if (result.status === 'wrong') {
+        statusClass = 'danger';
+        statusIcon = 'times-circle';
+    } else if (result.status === 'pending') {
+        statusClass = 'warning';
+        statusIcon = 'clock';
+    }
+    
+    resultContent.innerHTML = `
+        <div class="alert alert-${statusClass}">
+            <h5><i class="fas fa-${statusIcon}"></i> ${result.message}</h5>
+            <p class="mb-0">${result.detail}</p>
+        </div>
+    `;
+    
+    resultSection.style.display = 'block';
+    resultSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 加载本地保存的代码
+window.addEventListener('load', function() {
+    const language = document.getElementById('languageSelect').value;
+    const key = `problem_{{ problem.id }}_${language}_code`;
+    const savedCode = localStorage.getItem(key);
+    
+    if (savedCode) {
+        if (confirm('检测到本地保存的代码，是否加载？')) {
+            editor.setValue(savedCode);
+        }
+    }
+});
+</script>
+{% endblock %}

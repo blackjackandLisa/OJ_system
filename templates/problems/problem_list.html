@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+
+{% block title %}题目列表 - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .problem-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        margin-bottom: 1rem;
+    }
+    .problem-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .difficulty-badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 20px;
+    }
+    .status-icon {
+        font-size: 1.2rem;
+        margin-right: 0.5rem;
+    }
+    .accepted { color: #28a745; }
+    .trying { color: #ffc107; }
+    .not-tried { color: #6c757d; }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    .stats-badge {
+        font-size: 0.9rem;
+    }
+    .tag-badge {
+        margin: 0.2rem;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- 页头 -->
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <h2 class="mb-3"><i class="fas fa-list-ul"></i> 题目列表</h2>
+            <p class="text-muted">选择题目开始练习，挑战自我！</p>
+        </div>
+    </div>
+
+    <!-- 筛选区域 -->
+    <div class="filter-section">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-bold">搜索题目</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="输入题目标题...">
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label fw-bold">难度</label>
+                <select class="form-select" id="difficultyFilter">
+                    <option value="">全部</option>
+                    <option value="easy">简单</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">困难</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label fw-bold">标签</label>
+                <select class="form-select" id="tagFilter">
+                    <option value="">全部标签</option>
+                    <!-- 动态加载标签 -->
+                </select>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label class="form-label fw-bold">状态</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">全部</option>
+                    <option value="accepted">已通过</option>
+                    <option value="trying">尝试中</option>
+                    <option value="not_tried">未尝试</option>
+                </select>
+            </div>
+            <div class="col-md-1 mb-3">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-primary w-100" id="filterBtn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计信息 -->
+    <div class="row mb-4" id="statsSection">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-primary" id="totalProblems">0</h5>
+                    <p class="card-text text-muted">题目总数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success" id="solvedProblems">0</h5>
+                    <p class="card-text text-muted">已通过</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning" id="tryingProblems">0</h5>
+                    <p class="card-text text-muted">尝试中</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info" id="easyProblems">0</h5>
+                    <p class="card-text text-muted">简单题目</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 题目列表 -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="problemList">
+                <!-- 加载动画 -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2 text-muted">正在加载题目...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="row mt-4">
+        <div class="col-lg-12">
+            <nav aria-label="题目分页">
+                <ul class="pagination justify-content-center" id="pagination">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// API基础URL
+const API_BASE_URL = '/problems/api/problems/';
+let currentPage = 1;
+let currentFilters = {};
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadTags();
+    loadProblems();
+    setupEventListeners();
+});
+
+// 加载标签
+function loadTags() {
+    fetch('/problems/api/tags/')
+        .then(response => response.json())
+        .then(data => {
+            const tagFilter = document.getElementById('tagFilter');
+            data.results.forEach(tag => {
+                const option = document.createElement('option');
+                option.value = tag.id;
+                option.textContent = `${tag.name} (${tag.problem_count})`;
+                tagFilter.appendChild(option);
+            });
+        })
+        .catch(error => console.error('加载标签失败:', error));
+}
+
+// 加载题目列表
+function loadProblems(page = 1) {
+    currentPage = page;
+    
+    // 构建查询参数
+    let url = `${API_BASE_URL}?page=${page}`;
+    
+    if (currentFilters.search) {
+        url += `&search=${encodeURIComponent(currentFilters.search)}`;
+    }
+    if (currentFilters.difficulty) {
+        url += `&difficulty=${currentFilters.difficulty}`;
+    }
+    if (currentFilters.tag) {
+        url += `&tags=${currentFilters.tag}`;
+    }
+    if (currentFilters.status) {
+        url += `&user_status=${currentFilters.status}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            renderProblems(data.results);
+            renderPagination(data);
+            updateStats(data);
+        })
+        .catch(error => {
+            console.error('加载题目失败:', error);
+            document.getElementById('problemList').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> 加载题目失败，请刷新页面重试
+                </div>
+            `;
+        });
+}
+
+// 渲染题目列表
+function renderProblems(problems) {
+    const problemList = document.getElementById('problemList');
+    
+    if (problems.length === 0) {
+        problemList.innerHTML = `
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> 没有找到符合条件的题目
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-hover align-middle">';
+    html += `
+        <thead class="table-light">
+            <tr>
+                <th width="60">状态</th>
+                <th width="80">ID</th>
+                <th>题目</th>
+                <th width="100">难度</th>
+                <th width="120">通过率</th>
+                <th width="150">提交/通过</th>
+                <th>标签</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    problems.forEach(problem => {
+        const statusIcon = getStatusIcon(problem.user_status);
+        const difficultyBadge = getDifficultyBadge(problem.difficulty, problem.difficulty_display);
+        const tags = problem.tags.map(tag => 
+            `<span class="badge bg-secondary tag-badge">${tag.name}</span>`
+        ).join(' ');
+        
+        html += `
+            <tr>
+                <td class="text-center">${statusIcon}</td>
+                <td><strong>${problem.id}</strong></td>
+                <td>
+                    <a href="/problems/${problem.id}/" class="text-decoration-none">
+                        <strong>${escapeHtml(problem.title)}</strong>
+                    </a>
+                </td>
+                <td>${difficultyBadge}</td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar ${getProgressBarColor(problem.acceptance_rate)}" 
+                             style="width: ${problem.acceptance_rate}%"
+                             aria-valuenow="${problem.acceptance_rate}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            ${problem.acceptance_rate}%
+                        </div>
+                    </div>
+                </td>
+                <td class="text-center stats-badge">
+                    <span class="text-muted">${problem.total_submit}</span> / 
+                    <span class="text-success">${problem.total_accepted}</span>
+                </td>
+                <td>${tags}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    problemList.innerHTML = html;
+}
+
+// 渲染分页
+function renderPagination(data) {
+    const pagination = document.getElementById('pagination');
+    const totalPages = Math.ceil(data.count / 20);
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // 上一页
+    if (data.previous) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadProblems(${currentPage - 1}); return false;">上一页</a></li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link">上一页</span></li>';
+    }
+    
+    // 页码
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="loadProblems(${i}); return false;">${i}</a></li>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    // 下一页
+    if (data.next) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadProblems(${currentPage + 1}); return false;">下一页</a></li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link">下一页</span></li>';
+    }
+    
+    pagination.innerHTML = html;
+}
+
+// 更新统计信息
+function updateStats(data) {
+    document.getElementById('totalProblems').textContent = data.count || 0;
+    
+    // 统计已通过、尝试中等（需要遍历结果）
+    let solved = 0, trying = 0, easy = 0;
+    
+    if (data.results) {
+        data.results.forEach(p => {
+            if (p.user_status && p.user_status.status === 'accepted') solved++;
+            if (p.user_status && p.user_status.status === 'trying') trying++;
+            if (p.difficulty === 'easy') easy++;
+        });
+    }
+    
+    document.getElementById('solvedProblems').textContent = solved;
+    document.getElementById('tryingProblems').textContent = trying;
+    document.getElementById('easyProblems').textContent = easy;
+}
+
+// 设置事件监听器
+function setupEventListeners() {
+    // 搜索按钮
+    document.getElementById('filterBtn').addEventListener('click', applyFilters);
+    
+    // 回车搜索
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+    
+    // 筛选器变化时自动搜索
+    ['difficultyFilter', 'tagFilter', 'statusFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+}
+
+// 应用筛选
+function applyFilters() {
+    currentFilters = {
+        search: document.getElementById('searchInput').value,
+        difficulty: document.getElementById('difficultyFilter').value,
+        tag: document.getElementById('tagFilter').value,
+        status: document.getElementById('statusFilter').value,
+    };
+    loadProblems(1);
+}
+
+// 获取状态图标
+function getStatusIcon(userStatus) {
+    if (!userStatus) {
+        return '<i class="fas fa-circle not-tried status-icon"></i>';
+    }
+    
+    switch(userStatus.status) {
+        case 'accepted':
+            return '<i class="fas fa-check-circle accepted status-icon"></i>';
+        case 'trying':
+            return '<i class="fas fa-exclamation-circle trying status-icon"></i>';
+        default:
+            return '<i class="fas fa-circle not-tried status-icon"></i>';
+    }
+}
+
+// 获取难度徽章
+function getDifficultyBadge(difficulty, displayName) {
+    const badgeClass = {
+        'easy': 'bg-success',
+        'medium': 'bg-warning',
+        'hard': 'bg-danger'
+    }[difficulty] || 'bg-secondary';
+    
+    return `<span class="badge ${badgeClass} difficulty-badge">${displayName}</span>`;
+}
+
+// 获取进度条颜色
+function getProgressBarColor(rate) {
+    if (rate >= 50) return 'bg-success';
+    if (rate >= 30) return 'bg-warning';
+    return 'bg-danger';
+}
+
+// HTML转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

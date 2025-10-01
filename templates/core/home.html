@@ -11,8 +11,12 @@
                 <h1 class="display-4 fw-bold mb-4">欢迎来到OJ系统</h1>
                 <p class="lead mb-4">{{ description }}</p>
                 <div class="d-flex gap-3">
-                    <a href="{% url 'core:api_info' %}" class="btn btn-light btn-lg">查看API</a>
-                    <a href="/admin/" class="btn btn-outline-light btn-lg">管理后台</a>
+                    <a href="/problems/" class="btn btn-light btn-lg">
+                        <i class="fas fa-code"></i> 开始刷题
+                    </a>
+                    <a href="/admin/" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-user-shield"></i> 管理后台
+                    </a>
                 </div>
             </div>
             <div class="col-lg-6">

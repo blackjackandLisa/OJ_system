@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ problem.title }} - OJ系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .problem-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .problem-content {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .sample-box {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 5px;
+    }
+    .code-block {
+        background: #282c34;
+        color: #abb2bf;
+        padding: 1rem;
+        border-radius: 5px;
+        font-family: 'Courier New', monospace;
+        overflow-x: auto;
+    }
+    .info-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        display: inline-block;
+        margin: 0.5rem;
+    }
+    .tag-badge {
+        margin: 0.3rem;
+    }
+    .submit-section {
+        background: #f8f9fa;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-top: 2rem;
+    }
+    .stats-card {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 题目头部 -->
+<div class="problem-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-3">
+                    <span class="badge bg-light text-dark me-2">#{{ problem.id }}</span>
+                    {{ problem.title }}
+                </h1>
+                <div class="mb-3">
+                    {% if problem.difficulty == 'easy' %}
+                        <span class="badge bg-success info-badge">简单</span>
+                    {% elif problem.difficulty == 'medium' %}
+                        <span class="badge bg-warning info-badge">中等</span>
+                    {% else %}
+                        <span class="badge bg-danger info-badge">困难</span>
+                    {% endif %}
+                    
+                    {% if user_status %}
+                        {% if user_status.status == 'accepted' %}
+                            <span class="badge bg-success info-badge">
+                                <i class="fas fa-check"></i> 已通过
+                            </span>
+                        {% elif user_status.status == 'trying' %}
+                            <span class="badge bg-warning info-badge">
+                                <i class="fas fa-exclamation"></i> 尝试中
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                <div>
+                    {% for tag in problem.tags.all %}
+                        <span class="badge bg-light text-dark tag-badge">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="/problems/{{ problem.id }}/submit/" class="btn btn-light btn-lg">
+                    <i class="fas fa-code"></i> 提交代码
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <!-- 左侧：题目内容 -->
+        <div class="col-lg-8">
+            <div class="problem-content mb-4">
+                <!-- 导航标签 -->
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#description">
+                            题目描述
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#submissions">
+                            提交记录
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#discuss">
+                            讨论
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- 标签内容 -->
+                <div class="tab-content">
+                    <!-- 题目描述 -->
+                    <div class="tab-pane fade show active" id="description">
+                        <h4 class="mb-3">题目描述</h4>
+                        <div class="markdown-content">
+                            {{ problem.description|safe }}
+                        </div>
+
+                        <h4 class="mt-4 mb-3">输入格式</h4>
+                        <div class="markdown-content">
+                            {{ problem.input_format|safe }}
+                        </div>
+
+                        <h4 class="mt-4 mb-3">输出格式</h4>
+                        <div class="markdown-content">
+                            {{ problem.output_format|safe }}
+                        </div>
+
+                        <!-- 样例 -->
+                        <h4 class="mt-4 mb-3">样例</h4>
+                        {% for sample in problem.samples.all %}
+                        <div class="sample-box">
+                            <h6><strong>样例 {{ forloop.counter }}</strong></h6>
+                            
+                            <p class="mb-2"><strong>输入：</strong></p>
+                            <div class="code-block">{{ sample.input_data }}</div>
+                            
+                            <p class="mb-2 mt-3"><strong>输出：</strong></p>
+                            <div class="code-block">{{ sample.output_data }}</div>
+                            
+                            {% if sample.explanation %}
+                            <p class="mb-2 mt-3"><strong>说明：</strong></p>
+                            <p class="text-muted">{{ sample.explanation }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <!-- 提示 -->
+                        {% if problem.hint %}
+                        <div class="alert alert-info mt-4">
+                            <h5><i class="fas fa-lightbulb"></i> 提示</h5>
+                            <p class="mb-0">{{ problem.hint }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 提交记录 -->
+                    <div class="tab-pane fade" id="submissions">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 提交记录功能即将上线
+                        </div>
+                    </div>
+
+                    <!-- 讨论 -->
+                    <div class="tab-pane fade" id="discuss">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 讨论功能即将上线
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：题目信息 -->
+        <div class="col-lg-4">
+            <!-- 题目信息卡片 -->
+            <div class="card stats-card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-info-circle"></i> 题目信息
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">时间限制</small>
+                        <h6>{{ problem.time_limit }} ms</h6>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">内存限制</small>
+                        <h6>{{ problem.memory_limit }} MB</h6>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">难度</small>
+                        <h6>
+                            {% if problem.difficulty == 'easy' %}
+                                <span class="badge bg-success">简单</span>
+                            {% elif problem.difficulty == 'medium' %}
+                                <span class="badge bg-warning">中等</span>
+                            {% else %}
+                                <span class="badge bg-danger">困难</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+                    {% if problem.source %}
+                    <div class="mb-3">
+                        <small class="text-muted">来源</small>
+                        <h6>{{ problem.source }}</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 统计信息卡片 -->
+            <div class="card stats-card mb-3">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-chart-bar"></i> 统计信息
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">通过率</small>
+                        <div class="progress mt-1" style="height: 25px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ problem.acceptance_rate }}%">
+                                {{ problem.acceptance_rate }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">总提交数</small>
+                        <h5 class="text-primary">{{ problem.total_submit }}</h5>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">通过数</small>
+                        <h5 class="text-success">{{ problem.total_accepted }}</h5>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 个人统计卡片 -->
+            {% if user_status %}
+            <div class="card stats-card mb-3">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-user"></i> 我的统计
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">状态</small>
+                        <h6>
+                            {% if user_status.status == 'accepted' %}
+                                <span class="badge bg-success">已通过</span>
+                            {% elif user_status.status == 'trying' %}
+                                <span class="badge bg-warning">尝试中</span>
+                            {% else %}
+                                <span class="badge bg-secondary">未尝试</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">我的提交</small>
+                        <h6>{{ user_status.submit_count }} 次</h6>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">通过次数</small>
+                        <h6>{{ user_status.accepted_count }} 次</h6>
+                    </div>
+                    {% if user_status.first_accepted_at %}
+                    <div class="mb-3">
+                        <small class="text-muted">首次通过</small>
+                        <h6>{{ user_status.first_accepted_at|date:"Y-m-d H:i" }}</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 操作按钮 -->
+            <div class="d-grid gap-2 mb-3">
+                <a href="/problems/{{ problem.id }}/submit/" class="btn btn-primary btn-lg">
+                    <i class="fas fa-code"></i> 提交代码
+                </a>
+                <a href="/problems/" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Markdown渲染（如果需要）
+document.addEventListener('DOMContentLoaded', function() {
+    // 处理Markdown内容
+    const markdownElements = document.querySelectorAll('.markdown-content');
+    markdownElements.forEach(element => {
+        // 如果内容包含markdown标记，则渲染
+        const content = element.textContent;
+        if (content.includes('```') || content.includes('**') || content.includes('##')) {
+            element.innerHTML = marked.parse(content);
+        }
+    });
+});
+</script>
+{% endblock %}
