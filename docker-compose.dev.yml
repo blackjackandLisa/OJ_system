@@ -1,0 +1,52 @@
+version: '3.8'
+
+# 开发环境配置（无Nginx，代码热重载）
+
+services:
+  db:
+    image: postgres:15
+    container_name: oj_db_dev
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=oj_system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - oj_network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.fast
+    container_name: oj_web_dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app  # 代码挂载，支持热重载
+      - static_volume_dev:/app/staticfiles
+      - media_volume_dev:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+      - DB_HOST=db
+      - DB_NAME=oj_system
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_PORT=5432
+    networks:
+      - oj_network
+
+volumes:
+  postgres_data_dev:
+  static_volume_dev:
+  media_volume_dev:
+
+networks:
+  oj_network:
+    driver: bridge
