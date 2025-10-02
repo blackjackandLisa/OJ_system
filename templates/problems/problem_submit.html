@@ -66,12 +66,8 @@
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <label class="form-label mb-0 me-2"><strong>编程语言：</strong></label>
-                            <select class="form-select form-select-sm d-inline-block w-auto" id="languageSelect">
-                                <option value="cpp">C++</option>
-                                <option value="c">C</option>
-                                <option value="java">Java</option>
-                                <option value="python" selected>Python</option>
-                                <option value="javascript">JavaScript</option>
+                            <select class="form-select form-select-sm d-inline-block w-auto" id="languageSelect" disabled>
+                                <option value="" selected>正在加载语言...</option>
                             </select>
                         </div>
                         <div class="col-md-6 text-end">
@@ -199,30 +195,30 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
 
 <script>
-// 代码模板
-const codeTemplates = {
+const problemId = {{ problem.id }};
+
+const fallbackTemplates = {
     cpp: `#include <iostream>
-#include <vector>
 using namespace std;
 
 int main() {
     // 读取输入
-    
+
     // 处理逻辑
-    
+
     // 输出结果
-    
+
     return 0;
 }`,
     c: `#include <stdio.h>
 
 int main() {
     // 读取输入
-    
+
     // 处理逻辑
-    
+
     // 输出结果
-    
+
     return 0;
 }`,
     java: `import java.util.*;
@@ -230,13 +226,13 @@ int main() {
 public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        
+
         // 读取输入
-        
+
         // 处理逻辑
-        
+
         // 输出结果
-        
+
         sc.close();
     }
 }`,
@@ -261,12 +257,29 @@ const rl = readline.createInterface({
 `
 };
 
-// 初始化CodeMirror编辑器
-let editor;
+const fallbackLanguageMeta = {
+    cpp: { display_name: 'C++ 17' },
+    c: { display_name: 'C 11' },
+    java: { display_name: 'Java 11' },
+    python: { display_name: 'Python 3' },
+    javascript: { display_name: 'Node.js' }
+};
 
-document.addEventListener('DOMContentLoaded', function() {
+const languageModeMap = {
+    cpp: 'text/x-c++src',
+    c: 'text/x-csrc',
+    java: 'text/x-java',
+    python: 'text/x-python',
+    javascript: 'text/javascript'
+};
+
+let editor;
+let languageMap = new Map();
+let pollTimer = null;
+
+document.addEventListener('DOMContentLoaded', () => {
     const textarea = document.getElementById('codeEditor');
-    
+
     editor = CodeMirror.fromTextArea(textarea, {
         mode: 'text/x-python',
         theme: 'monokai',
@@ -275,131 +288,466 @@ document.addEventListener('DOMContentLoaded', function() {
         indentWithTabs: false,
         lineWrapping: true,
         matchBrackets: true,
-        autoCloseBrackets: true,
+        autoCloseBrackets: true
     });
-    
-    // 设置初始代码
-    editor.setValue(codeTemplates.python);
-    
-    // 语言切换
-    document.getElementById('languageSelect').addEventListener('change', function(e) {
-        const language = e.target.value;
-        changeLanguage(language);
+
+    loadLanguages();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    const languageSelect = document.getElementById('languageSelect');
+    const resetBtn = document.getElementById('resetCode');
+    const submitBtn = document.getElementById('submitBtn');
+    const testBtn = document.getElementById('testBtn');
+
+    languageSelect.addEventListener('change', (event) => {
+        const languageName = event.target.value;
+        changeLanguage(languageName);
+        localStorage.setItem(getLanguageStorageKey(), languageName);
     });
-    
-    // 重置代码
-    document.getElementById('resetCode').addEventListener('click', function() {
-        const language = document.getElementById('languageSelect').value;
+
+    resetBtn.addEventListener('click', () => {
+        const languageName = languageSelect.value;
+        if (!languageName) {
+            alert('请选择编程语言');
+            return;
+        }
+        const template = getLanguageTemplate(languageName);
         if (confirm('确定要重置代码吗？当前编辑的内容将丢失。')) {
-            editor.setValue(codeTemplates[language]);
+            editor.setValue(template);
+            editor.focus();
         }
     });
-    
-    // 提交代码
-    document.getElementById('submitBtn').addEventListener('click', submitCode);
-    
-    // 测试样例
-    document.getElementById('testBtn').addEventListener('click', testSample);
-    
-    // 快捷键
-    document.addEventListener('keydown', function(e) {
-        // Ctrl+S 保存
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
+
+    submitBtn.addEventListener('click', submitCode);
+    testBtn.addEventListener('click', showSampleTestPlaceholder);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey && event.key === 's') {
+            event.preventDefault();
             saveCode();
         }
-        // Ctrl+Enter 提交
-        if (e.ctrlKey && e.key === 'Enter') {
-            e.preventDefault();
+        if (event.ctrlKey && event.key === 'Enter') {
+            event.preventDefault();
             submitCode();
         }
     });
-});
+}
 
-// 切换语言
-function changeLanguage(language) {
-    const modeMap = {
-        cpp: 'text/x-c++src',
-        c: 'text/x-csrc',
-        java: 'text/x-java',
-        python: 'text/x-python',
-        javascript: 'text/javascript'
-    };
-    
-    editor.setOption('mode', modeMap[language]);
-    
-    // 询问是否加载模板
-    if (confirm('是否加载该语言的代码模板？')) {
-        editor.setValue(codeTemplates[language]);
+async function loadLanguages() {
+    const languageSelect = document.getElementById('languageSelect');
+    languageSelect.innerHTML = '<option value="">正在加载语言...</option>';
+    languageSelect.disabled = true;
+
+    try {
+        const response = await fetch('/judge/api/languages/', {
+            method: 'GET',
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            throw new Error(`加载失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error('未获取到语言列表');
+        }
+
+        populateLanguageSelect(data);
+    } catch (error) {
+        console.warn('从API加载语言失败，使用本地备用配置。', error);
+        const fallbackLanguages = Object.keys(fallbackTemplates).map((key) => ({
+            name: key,
+            display_name: fallbackLanguageMeta[key]?.display_name || key,
+            template: fallbackTemplates[key]
+        }));
+        populateLanguageSelect(fallbackLanguages, true);
+        showMessage('warning', '语言列表加载失败', '已启用本地语言配置，可联系管理员检查判题服务。');
     }
 }
 
-// 提交代码
-function submitCode() {
-    const code = editor.getValue();
-    const language = document.getElementById('languageSelect').value;
-    
-    if (!code.trim()) {
-        alert('请先编写代码！');
+function populateLanguageSelect(languages, isFallback = false) {
+    const languageSelect = document.getElementById('languageSelect');
+    languageSelect.innerHTML = '';
+    languageSelect.disabled = false;
+    languageMap.clear();
+
+    languages.sort((a, b) => {
+        if (typeof a.order === 'number' && typeof b.order === 'number') {
+            return a.order - b.order;
+        }
+        return (a.display_name || a.name).localeCompare(b.display_name || b.name);
+    });
+
+    languages.forEach((language) => {
+        if (!language || !language.name) {
+            return;
+        }
+        const option = document.createElement('option');
+        option.value = language.name;
+        option.textContent = language.display_name || language.name;
+        if (isFallback) {
+            option.dataset.fallback = 'true';
+        }
+        languageSelect.appendChild(option);
+        languageMap.set(language.name, language);
+    });
+
+    const storedLanguage = localStorage.getItem(getLanguageStorageKey());
+    let defaultLanguage = storedLanguage && languageMap.has(storedLanguage)
+        ? storedLanguage
+        : (languageMap.has('python') ? 'python' : (languageSelect.options[0]?.value || ''));
+
+    if (defaultLanguage) {
+        languageSelect.value = defaultLanguage;
+        changeLanguage(defaultLanguage, { initial: true });
+    }
+}
+
+function changeLanguage(languageName, options = {}) {
+    if (!languageMap.has(languageName)) {
         return;
     }
-    
-    // 显示提交中
+
+    const language = languageMap.get(languageName);
+    const mode = languageModeMap[languageName] || 'text/plain';
+    editor.setOption('mode', mode);
+
+    const storageKey = getCodeStorageKey(languageName);
+    const savedCode = localStorage.getItem(storageKey);
+    const template = getLanguageTemplate(languageName);
+
+    if (options.initial) {
+        if (savedCode) {
+            editor.setValue(savedCode);
+        } else {
+            editor.setValue(template);
+        }
+    } else if (savedCode) {
+        if (confirm('检测到本地保存的代码，是否加载？')) {
+            editor.setValue(savedCode);
+        }
+    } else {
+        if (confirm('是否加载该语言的代码模板？')) {
+            editor.setValue(template);
+        }
+    }
+
+    setTimeout(() => editor.refresh(), 0);
+    editor.focus();
+}
+
+function getLanguageTemplate(languageName) {
+    const language = languageMap.get(languageName);
+    if (language && language.template) {
+        return language.template;
+    }
+    return fallbackTemplates[languageName] || '';
+}
+
+function getLanguageStorageKey() {
+    return `problem_${problemId}_last_language`;
+}
+
+function getCodeStorageKey(languageName) {
+    return `problem_${problemId}_${languageName}_code`;
+}
+
+async function submitCode() {
+    const code = editor.getValue();
+    const languageName = document.getElementById('languageSelect').value;
+
+    if (!languageName) {
+        alert('请选择编程语言');
+        return;
+    }
+
+    if (!code.trim()) {
+        alert('请先编写代码');
+        return;
+    }
+
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
-    
-    // TODO: 发送到后端API
-    // 这里暂时显示模拟结果
-    setTimeout(() => {
-        showResult({
-            status: 'pending',
-            message: '提交系统即将上线，敬请期待！',
-            detail: '当前提交的代码已保存，判题功能将在下个版本中实现。'
+
+    const payload = {
+        problem_id: problemId,
+        language_name: languageName,
+        code
+    };
+
+    try {
+        const response = await fetch('/judge/api/submissions/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(payload)
         });
-        
+
+        if (response.status === 401) {
+            window.location.href = '/users/login/?next=' + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            const errorMessage = result?.detail || '提交失败，请稍后重试。';
+            showMessage('danger', '提交失败', errorMessage);
+            return;
+        }
+
+        showSubmissionPending(result);
+        if (typeof result.id === 'number') {
+            startPollingSubmission(result.id);
+        }
+
+        // 自动保存当前代码
+        localStorage.setItem(getCodeStorageKey(languageName), code);
+    } catch (error) {
+        console.error('提交异常', error);
+        showMessage('danger', '提交失败', '网络异常或服务器不可用，请稍后再试。');
+    } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交代码';
-    }, 1000);
+    }
 }
 
-// 测试样例
-function testSample() {
-    const code = editor.getValue();
-    const language = document.getElementById('languageSelect').value;
-    
-    if (!code.trim()) {
-        alert('请先编写代码！');
+function showSampleTestPlaceholder() {
+    showMessage('info', '样例测试开发中', '样例测试功能正在开发，敬请期待。');
+}
+
+function showSubmissionPending(data) {
+    const message = data?.message || '提交成功，正在判题...';
+    renderResultCard({
+        type: 'warning',
+        icon: 'clock',
+        title: '正在判题',
+        body: `<p class="mb-1">${escapeHtml(message)}</p><p class="mb-0 text-muted">请稍候，系统会自动刷新判题结果。</p>`
+    });
+}
+
+function startPollingSubmission(submissionId) {
+    if (pollTimer) {
+        clearTimeout(pollTimer);
+    }
+
+    const poll = async (attempt = 0) => {
+        if (attempt > 60) { // ~90 秒
+            showMessage('warning', '判题超时', '判题时间较长，请稍后在“我的提交”中查看结果。');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/judge/api/submissions/${submissionId}/`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+
+            if (response.status === 404) {
+                showMessage('danger', '未找到提交记录', '请刷新页面后重试。');
+                return;
+            }
+
+            if (response.status === 403) {
+                showMessage('danger', '无权查看提交', '请确认已登录，并仅查看自己的提交。');
+                return;
+            }
+
+            const submission = await response.json();
+
+            if (submission.status === 'finished' || submission.status === 'error') {
+                renderSubmissionResult(submission);
+                return;
+            }
+
+            renderResultCard({
+                type: 'warning',
+                icon: 'clock',
+                title: '正在判题',
+                body: `<p class="mb-1">系统判题中，请稍候...（${attempt + 1}）</p>`
+            });
+
+            pollTimer = setTimeout(() => poll(attempt + 1), 1500);
+        } catch (error) {
+            console.error('轮询提交结果失败', error);
+            showMessage('danger', '获取判题结果失败', '网络异常，请稍后尝试刷新页面。');
+        }
+    };
+
+    poll();
+}
+
+function renderSubmissionResult(submission) {
+    const resultInfo = getResultPresentation(submission.result || submission.status);
+    const summaryItems = [];
+
+    summaryItems.push(`<strong>判题状态：</strong> ${escapeHtml(submission.status || '未知')}`);
+    if (submission.result) {
+        summaryItems.push(`<strong>判题结果：</strong> ${escapeHtml(submission.result)}`);
+    }
+    if (typeof submission.score === 'number' && typeof submission.total_score === 'number') {
+        summaryItems.push(`<strong>得分：</strong> ${submission.score} / ${submission.total_score}`);
+    }
+    if (typeof submission.pass_rate === 'number') {
+        summaryItems.push(`<strong>通过率：</strong> ${submission.pass_rate.toFixed(2)}%`);
+    }
+    if (typeof submission.time_used === 'number') {
+        summaryItems.push(`<strong>耗时：</strong> ${submission.time_used} ms`);
+    }
+    if (typeof submission.memory_used === 'number') {
+        summaryItems.push(`<strong>内存：</strong> ${submission.memory_used} KB`);
+    }
+
+    const createdAt = formatDateTime(submission.created_at);
+    const judgedAt = formatDateTime(submission.judged_at);
+
+    const summaryHtml = `
+        <div class="mb-3">
+            <p class="mb-1">${summaryItems.join('<br>')}</p>
+            <p class="text-muted mb-0 small">提交时间：${createdAt || '未知'}${judgedAt ? ` ｜ 判题时间：${judgedAt}` : ''}</p>
+        </div>
+    `;
+
+    let detailHtml = '';
+
+    if (submission.compile_error) {
+        detailHtml += `
+            <div class="mt-3">
+                <h6>编译信息</h6>
+                <pre class="bg-light p-3 rounded">${escapeHtml(submission.compile_error)}</pre>
+            </div>
+        `;
+    }
+
+    if (submission.runtime_error) {
+        detailHtml += `
+            <div class="mt-3">
+                <h6>运行信息</h6>
+                <pre class="bg-light p-3 rounded">${escapeHtml(submission.runtime_error)}</pre>
+            </div>
+        `;
+    }
+
+    const testCases = submission.judge_detail?.test_cases || [];
+    if (Array.isArray(testCases) && testCases.length > 0) {
+        const rows = testCases.map((testcase, index) => {
+            const testInfo = getResultPresentation(testcase.result);
+            const timeText = typeof testcase.time === 'number' ? `${testcase.time} ms` : '-';
+            const memoryText = typeof testcase.memory === 'number' ? `${testcase.memory} KB` : '-';
+            const messages = [];
+            if (testcase.error) {
+                messages.push(`<div>错误：${escapeHtml(testcase.error)}</div>`);
+            }
+            if (testcase.user_output) {
+                messages.push(`<div>输出：${escapeHtml(testcase.user_output)}</div>`);
+            }
+            if (testcase.expected_output) {
+                messages.push(`<div>期望：${escapeHtml(testcase.expected_output)}</div>`);
+            }
+            const messageHtml = messages.length > 0 ? messages.join('') : '';
+
+            return `
+                <tr>
+                    <td class="text-center">${index + 1}</td>
+                    <td><span class="badge bg-${testInfo.badge}">${escapeHtml(testcase.result || '未知')}</span></td>
+                    <td>${timeText}</td>
+                    <td>${memoryText}</td>
+                    <td>${messageHtml}</td>
+                </tr>
+            `;
+        }).join('');
+
+        detailHtml += `
+            <div class="mt-3">
+                <h6>测试用例详情</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width: 80px;">#</th>
+                                <th style="width: 160px;">结果</th>
+                                <th style="width: 120px;">耗时</th>
+                                <th style="width: 120px;">内存</th>
+                                <th>信息</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    renderResultCard({
+        type: resultInfo.alert,
+        icon: resultInfo.icon,
+        title: resultInfo.title,
+        body: summaryHtml + detailHtml
+    });
+}
+
+function renderResultCard({ type = 'info', icon = 'info-circle', title = '提示', body = '' }) {
+    const resultSection = document.getElementById('resultSection');
+    const resultContent = document.getElementById('resultContent');
+
+    resultContent.innerHTML = `
+        <div class="alert alert-${type}">
+            <h5 class="alert-heading"><i class="fas fa-${icon}"></i> ${title}</h5>
+            <div class="mb-0">${body}</div>
+        </div>
+    `;
+
+    resultSection.style.display = 'block';
+    resultSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+function showMessage(type, title, message) {
+    renderResultCard({
+        type,
+        icon: type === 'success' ? 'check-circle' : type === 'danger' ? 'times-circle' : 'info-circle',
+        title,
+        body: `<p class="mb-0">${escapeHtml(message)}</p>`
+    });
+}
+
+function getResultPresentation(result) {
+    const map = {
+        AC: { alert: 'success', badge: 'success', icon: 'check-circle', title: 'Accepted' },
+        accepted: { alert: 'success', badge: 'success', icon: 'check-circle', title: 'Accepted' },
+        WA: { alert: 'danger', badge: 'danger', icon: 'times-circle', title: 'Wrong Answer' },
+        wrong: { alert: 'danger', badge: 'danger', icon: 'times-circle', title: 'Wrong Answer' },
+        TLE: { alert: 'warning', badge: 'warning', icon: 'clock', title: 'Time Limit Exceeded' },
+        MLE: { alert: 'warning', badge: 'warning', icon: 'memory', title: 'Memory Limit Exceeded' },
+        RE: { alert: 'danger', badge: 'danger', icon: 'bug', title: 'Runtime Error' },
+        CE: { alert: 'info', badge: 'info', icon: 'wrench', title: 'Compile Error' },
+        SE: { alert: 'secondary', badge: 'secondary', icon: 'exclamation-triangle', title: 'System Error' },
+        PE: { alert: 'warning', badge: 'warning', icon: 'file-alt', title: 'Presentation Error' },
+        OLE: { alert: 'warning', badge: 'warning', icon: 'file-export', title: 'Output Limit Exceeded' },
+        judging: { alert: 'warning', badge: 'warning', icon: 'clock', title: 'Judging' },
+        pending: { alert: 'warning', badge: 'warning', icon: 'clock', title: 'Pending' }
+    };
+
+    const key = (result || '').toUpperCase();
+    return map[key] || { alert: 'secondary', badge: 'secondary', icon: 'question-circle', title: result || '未知状态' };
+}
+
+function saveCode() {
+    const languageName = document.getElementById('languageSelect').value;
+    if (!languageName) {
+        alert('请选择编程语言');
         return;
     }
-    
-    // 显示测试中
-    const testBtn = document.getElementById('testBtn');
-    testBtn.disabled = true;
-    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
-    
-    // TODO: 发送到后端API测试
-    setTimeout(() => {
-        showResult({
-            status: 'info',
-            message: '样例测试功能即将上线',
-            detail: '测试功能将在判题系统开发完成后可用。'
-        });
-        
-        testBtn.disabled = false;
-        testBtn.innerHTML = '<i class="fas fa-flask"></i> 测试样例';
-    }, 1000);
-}
-
-// 保存代码到本地
-function saveCode() {
     const code = editor.getValue();
-    const language = document.getElementById('languageSelect').value;
-    const key = `problem_{{ problem.id }}_${language}_code`;
-    
-    localStorage.setItem(key, code);
-    
-    // 显示保存成功提示
+    const storageKey = getCodeStorageKey(languageName);
+    localStorage.setItem(storageKey, code);
+
     const toast = document.createElement('div');
     toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 start-50 translate-middle-x mt-3';
     toast.setAttribute('role', 'alert');
@@ -412,52 +760,60 @@ function saveCode() {
         </div>
     `;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.remove();
     }, 2000);
 }
 
-// 显示结果
-function showResult(result) {
-    const resultSection = document.getElementById('resultSection');
-    const resultContent = document.getElementById('resultContent');
-    
-    let statusClass = 'info';
-    let statusIcon = 'info-circle';
-    
-    if (result.status === 'accepted') {
-        statusClass = 'success';
-        statusIcon = 'check-circle';
-    } else if (result.status === 'wrong') {
-        statusClass = 'danger';
-        statusIcon = 'times-circle';
-    } else if (result.status === 'pending') {
-        statusClass = 'warning';
-        statusIcon = 'clock';
+function getCsrfToken() {
+    const name = 'csrftoken';
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+            return decodeURIComponent(cookie.substring(name.length + 1));
+        }
     }
-    
-    resultContent.innerHTML = `
-        <div class="alert alert-${statusClass}">
-            <h5><i class="fas fa-${statusIcon}"></i> ${result.message}</h5>
-            <p class="mb-0">${result.detail}</p>
-        </div>
-    `;
-    
-    resultSection.style.display = 'block';
-    resultSection.scrollIntoView({ behavior: 'smooth' });
+    return '';
 }
 
-// 加载本地保存的代码
-window.addEventListener('load', function() {
-    const language = document.getElementById('languageSelect').value;
-    const key = `problem_{{ problem.id }}_${language}_code`;
-    const savedCode = localStorage.getItem(key);
-    
-    if (savedCode) {
-        if (confirm('检测到本地保存的代码，是否加载？')) {
-            editor.setValue(savedCode);
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return '';
+    }
+    try {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
         }
+        return date.toLocaleString();
+    } catch (error) {
+        return '';
+    }
+}
+
+window.addEventListener('load', () => {
+    const languageName = document.getElementById('languageSelect').value;
+    if (!languageName) {
+        return;
+    }
+    const storageKey = getCodeStorageKey(languageName);
+    const savedCode = localStorage.getItem(storageKey);
+    if (savedCode && confirm('检测到本地保存的代码，是否加载？')) {
+        editor.setValue(savedCode);
     }
 });
 </script>
