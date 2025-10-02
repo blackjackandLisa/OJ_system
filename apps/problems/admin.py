@@ -25,12 +25,38 @@ class ProblemSampleInline(admin.TabularInline):
     ordering = ['order']
 
 
-class TestCaseInline(admin.TabularInline):
+class TestCaseInline(admin.StackedInline):
     """测试用例内联编辑"""
     model = TestCase
-    extra = 0
-    fields = ['order', 'is_sample', 'score', 'time_limit', 'memory_limit']
+    extra = 1
+    fields = [
+        'order',
+        'input_data',
+        'output_data',
+        'is_sample',
+        'score',
+        'time_limit',
+        'memory_limit'
+    ]
     ordering = ['order']
+    
+    def get_formset(self, request, obj=None, **kwargs):
+        """自定义formset，设置textarea样式"""
+        formset = super().get_formset(request, obj, **kwargs)
+        # 设置输入输出字段为textarea
+        if 'input_data' in formset.form.base_fields:
+            formset.form.base_fields['input_data'].widget.attrs.update({
+                'rows': 6,
+                'cols': 80,
+                'style': 'font-family: monospace; width: 100%;'
+            })
+        if 'output_data' in formset.form.base_fields:
+            formset.form.base_fields['output_data'].widget.attrs.update({
+                'rows': 6,
+                'cols': 80,
+                'style': 'font-family: monospace; width: 100%;'
+            })
+        return formset
 
 
 @admin.register(Problem)
@@ -169,19 +195,76 @@ class ProblemSampleAdmin(admin.ModelAdmin):
 @admin.register(TestCase)
 class TestCaseAdmin(admin.ModelAdmin):
     """测试用例管理"""
-    list_display = ['problem', 'order', 'is_sample', 'score', 'time_limit_display', 'memory_limit_display']
-    list_filter = ['is_sample', 'problem__difficulty']
-    search_fields = ['problem__title']
+    list_display = [
+        'problem',
+        'order',
+        'input_preview',
+        'output_preview',
+        'is_sample',
+        'score',
+        'time_limit_display',
+        'memory_limit_display'
+    ]
+    list_filter = ['is_sample', 'problem__difficulty', 'problem']
+    search_fields = ['problem__title', 'input_data', 'output_data']
     ordering = ['problem', 'order']
+    
+    fieldsets = (
+        ('基本信息', {
+            'fields': ('problem', 'order', 'is_sample', 'score')
+        }),
+        ('测试数据', {
+            'fields': ('input_data', 'output_data'),
+            'description': '⚠️ 输入输出数据末尾必须包含换行符 \\n'
+        }),
+        ('资源限制', {
+            'fields': ('time_limit', 'memory_limit'),
+            'description': '留空则使用题目默认限制'
+        }),
+    )
+    
+    def input_preview(self, obj):
+        """输入数据预览"""
+        data = obj.input_data
+        if not data:
+            return format_html('<span style="color: #999;">无</span>')
+        preview = data[:30].replace('\n', '↵')
+        if len(data) > 30:
+            preview += '...'
+        return format_html(
+            '<code style="background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">{}</code>',
+            preview
+        )
+    input_preview.short_description = '输入预览'
+    
+    def output_preview(self, obj):
+        """输出数据预览"""
+        data = obj.output_data
+        if not data:
+            return format_html('<span style="color: #999;">无</span>')
+        preview = data[:30].replace('\n', '↵')
+        if len(data) > 30:
+            preview += '...'
+        return format_html(
+            '<code style="background: #f5f5f5; padding: 2px 5px; border-radius: 3px;">{}</code>',
+            preview
+        )
+    output_preview.short_description = '输出预览'
     
     def time_limit_display(self, obj):
         """时间限制显示"""
-        return f"{obj.get_time_limit()}ms"
+        limit = obj.get_time_limit()
+        if obj.time_limit:
+            return format_html('<strong>{}ms</strong>', limit)
+        return format_html('<span style="color: #999;">{}ms (默认)</span>', limit)
     time_limit_display.short_description = '时间限制'
     
     def memory_limit_display(self, obj):
         """内存限制显示"""
-        return f"{obj.get_memory_limit()}MB"
+        limit = obj.get_memory_limit()
+        if obj.memory_limit:
+            return format_html('<strong>{}MB</strong>', limit)
+        return format_html('<span style="color: #999;">{}MB (默认)</span>', limit)
     memory_limit_display.short_description = '内存限制'
 
 
